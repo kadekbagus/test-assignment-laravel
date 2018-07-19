@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Validator;
+use App\Film;
+use App\FilmGenre;
+use App\Genre;
 
 class FilmAPIController extends Controller
 {
@@ -13,8 +17,13 @@ class FilmAPIController extends Controller
      */
     public function index()
     {
-        //
-        echo 'tes';
+        $films = Film::get();
+
+        return response()->json([
+            'code' => 200,
+            'message' => 'Request Ok',
+            'data' => $films
+        ]);
     }
 
     /**
@@ -39,33 +48,57 @@ class FilmAPIController extends Controller
         $name = $request->input('name');
         $description = $request->input('description');
         $rating = $request->input('rating');
+        $ticket_price = $request->input('ticket_price');
+        $country = $request->input('country');
+        $photo = $request->input('photo');
+        $slug = str_slug($name);
 
         $this->registerCustomValidation();
 
         // validate the input
         $validator = Validator::make(
-            array('page_name'    => $pageName,
-                  'page_content' => $pageContent),
-            array('page_name'    => 'required|max:25|slug.exist',
-                  'page_content' => 'required'),
-            array('slug.exist'   => 'page already exist!')
+            array('name'         => $name,
+                  'description'  => $description,
+                  'rating'       => $rating,
+                  'ticket_price' => $ticket_price,
+                  'country'      => $country,
+                  'photo'        => $photo
+                 ),
+            array('name'         => 'required|slug.exist',
+                  'description'  => 'required',
+                  'rating'       => 'required',
+                  'ticket_price' => 'required',
+                  'country'      => 'required',
+                  'photo'        => 'required'
+                 ),
+            array('slug.exist'   => 'film already exist!')
         );
 
         // validation fail
         if ($validator->fails()) {
-            return redirect('admin/page/create')
-                    ->withErrors($validator)
-                    ->withInput();
+            $errorMessage = $validator->messages()->first();
+            return response()->json([
+                'code' => 200,
+                'message' => $errorMessage,
+                'data' => NULL
+            ]);
         }
 
-        $newPage = new Page();
-        $newPage->page_name = $pageName;
-        $newPage->page_type = 'main_page';
-        $newPage->slug = $slug;
-        $newPage->status = 'active';
-        $newPage->content = $pageContent;
-        $newPage->parent_id = null;
-        $newPage->save();
+        $new_film = new Film();
+        $new_film->name = $name;
+        $new_film->description = $description;
+        $new_film->slug = $slug;
+        $new_film->rating = $rating;
+        $new_film->ticket_price = $ticket_price;
+        $new_film->country = $country;
+        $new_film->photo = $photo;
+        $new_film->save();
+
+        return response()->json([
+            'code' => 200,
+            'message' => 'Request Ok',
+            'data' => $new_film
+        ]);
     }
 
     /**
@@ -100,6 +133,63 @@ class FilmAPIController extends Controller
     public function update(Request $request, $id)
     {
         //
+        $film_id = $id;
+        $name = $request->input('name');
+        $description = $request->input('description');
+        $rating = $request->input('rating');
+        $ticket_price = $request->input('ticket_price');
+        $country = $request->input('country');
+        $photo = $request->input('photo');
+        $slug = str_slug($name);
+
+        $this->registerCustomValidation();
+
+        // validate the input
+        $validator = Validator::make(
+            array('film_id'      => $film_id,
+                  'name'         => $name,
+                  'description'  => $description,
+                  'rating'       => $rating,
+                  'ticket_price' => $ticket_price,
+                  'country'      => $country,
+                  'photo'        => $photo
+                 ),
+            array('film_id'      => 'required|film.exist',
+                  'name'         => 'required',
+                  'description'  => 'required',
+                  'rating'       => 'required',
+                  'ticket_price' => 'required',
+                  'country'      => 'required',
+                  'photo'        => 'required'
+                 ),
+            array('slug.exist'   => 'film already exist!')
+        );
+
+        // validation fail
+        if ($validator->fails()) {
+            $errorMessage = $validator->messages()->first();
+            return response()->json([
+                'code' => 200,
+                'message' => $errorMessage,
+                'data' => NULL
+            ]);
+        }
+
+        $update_film = Film::where('film_id', '=', $pageId)->first();
+        $update_film->name = $name;
+        $update_film->description = $description;
+        $update_film->slug = $slug;
+        $update_film->rating = $rating;
+        $update_film->ticket_price = $ticket_price;
+        $update_film->country = $country;
+        $update_film->photo = $photo;
+        $update_film->save();
+
+        return response()->json([
+            'code' => 200,
+            'message' => 'Request Ok',
+            'data' => $update_film
+        ]);
     }
 
     /**
@@ -110,7 +200,20 @@ class FilmAPIController extends Controller
      */
     public function destroy($id)
     {
-        //
+        $delete_film = Film::where('film_id', '=', $id);
+        if ($delete_film->delete()) {
+            return response()->json([
+                'code' => 200,
+                'message' => 'Request Ok',
+                'data' => $delete_film
+            ]);
+        } else {
+            return response()->json([
+                'code' => 200,
+                'message' => 'Request Failed',
+                'data' => null
+            ]);
+        }
     }
 
     protected function registerCustomValidation()
@@ -118,22 +221,22 @@ class FilmAPIController extends Controller
         // check slug exist or not
         Validator::extend('slug.exist', function ($attribute, $value, $parameters) {
             $slug = str_slug($value);
-            $page = Film::where('slug', $slug)
+            $film = Film::where('slug', $slug)
                         ->first();
 
-            if (empty($page)) {
+            if (empty($film)) {
                 return TRUE;
             }
 
             return FALSE;
         });
 
-        // check slug exist or not
-        Validator::extend('page.exist', function ($attribute, $value, $parameters) {
-            $page = Page::where('page_id', $value)
+        // check film exist or not
+        Validator::extend('film.exist', function ($attribute, $value, $parameters) {
+            $film = Film::where('film_id', $value)
                         ->first();
 
-            if (empty($page)) {
+            if (empty($film)) {
                 return FALSE;
             }
 
