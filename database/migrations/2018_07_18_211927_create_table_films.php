@@ -17,6 +17,7 @@ class CreateTableFilms extends Migration
             $table->increments('film_id');
             $table->string('name', 100);
             $table->string('description', 255);
+            $table->string('slug', 50)->unique();
             $table->integer('rating');
             $table->decimal('ticket_price', 6, 2);
             $table->string('country', 100);
